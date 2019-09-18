@@ -1,0 +1,138 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ template "harbor.registry" . }}"
+  namespace: harbor
+  labels:
+{{ include "harbor.labels" . | indent 4 }}
+    component: registry
+spec:
+  replicas: {{ .Values.registry.replicas }}
+  selector:
+    matchLabels:
+{{ include "harbor.matchLabels" . | indent 6 }}
+      component: registry
+  strategy:
+    type: {{ .Values.strategy.type }}
+    rollingUpdate:
+      maxSurge: {{ .Values.strategy.maxSurge }}
+      maxUnavailable: {{ .Values.strategy.maxUnavailable }}
+  minReadySeconds: {{ .Values.minReadySeconds }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  template:
+    metadata:
+      labels:
+{{ include "harbor.labels" . | indent 8 }}
+        component: registry
+      annotations:
+        checksum/configmap: {{ include (print $.Template.BasePath "/registry/registry-cm.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/registry/registry-secret.yaml") . | sha256sum }}
+{{- if .Values.registry.podAnnotations }}
+{{ toYaml .Values.registry.podAnnotations | indent 8 }}
+{{- end }}
+    spec:
+      containers:
+      - name: registry
+        image: {{ .Values.registry.registry.image.repository }}:{{ .Values.registry.registry.image.tag }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.registry.livenessProbe.httpGet.path }}
+            port: {{ .Values.registry.livenessProbe.httpGet.port }}
+          initialDelaySeconds: {{ .Values.registry.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.registry.livenessProbe.periodSeconds }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.registry.readinessProbe.httpGet.path }}
+            port: {{ .Values.registry.readinessProbe.httpGet.port }}
+          initialDelaySeconds: {{ .Values.registry.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.registry.readinessProbe.periodSeconds }}
+        resources:
+{{ toYaml .Values.registry.resources | indent 10 }}
+        args: ["serve", "/etc/registry/config.yml"]
+        envFrom:
+        - secretRef:
+            name: "{{ template "harbor.registry" . }}"
+        ports:
+        - containerPort: {{ .Values.registry.ports.containerPort }}
+        - containerPort: {{ .Values.registry.ports.containerPorts }}
+        volumeMounts:
+        - name: registry-data
+          mountPath: {{ .Values.persistence.imageChartStorage.filesystem.rootdirectory }}
+          subPath: {{ .Values.persistence.persistentVolumeClaim.registry.subPath }}
+        - name: registry-root-certificate
+          mountPath: /etc/registry/root.crt
+          subPath: tokenServiceRootCertBundle
+        - name: registry-config
+          mountPath: /etc/registry/config.yml
+          subPath: config.yml
+      - name: registryctl
+        image: {{ .Values.registry.controller.image.repository }}:{{ .Values.registry.controller.image.tag }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.registryctl.livenessProbe.httpGet.path }}
+            port: {{ .Values.registryctl.livenessProbe.httpGet.port }}
+          initialDelaySeconds: {{ .Values.registryctl.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.registryctl.livenessProbe.periodSeconds }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.registryctl.readinessProbe.httpGet.path }}
+            port: {{ .Values.registryctl.readinessProbe.httpGet.port }}
+          initialDelaySeconds: {{ .Values.registryctl.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.registryctl.readinessProbe.periodSeconds }}
+        resources:
+{{ toYaml .Values.registry.resources | indent 10 }}
+        args: ["serve", "/etc/registry/config.yml"]
+        envFrom:
+        - secretRef:
+            name: "{{ template "harbor.registry" . }}"
+        env:
+          - name: CORE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "harbor.core" . }}
+                key: secret
+          - name: JOBSERVICE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: "{{ template "harbor.fullname" . }}-jobservice"
+                key: secret
+        ports:
+        - containerPort: {{ .Values.registryctl.ports.containerPort }}
+        volumeMounts:
+        - name: registry-data
+          mountPath: {{ .Values.persistence.imageChartStorage.filesystem.rootdirectory }}
+          subPath: {{ .Values.persistence.persistentVolumeClaim.registry.subPath }}
+        - name: registry-config
+          mountPath: /etc/registry/config.yml
+          subPath: config.yml
+        - name: registry-config
+          mountPath: /etc/registryctl/config.yml
+          subPath: ctl-config.yml
+      volumes:
+      - name: registry-root-certificate
+        secret:
+          secretName: {{ template "harbor.core" . }}
+      - name: registry-config
+        configMap:
+          name: "{{ template "harbor.registry" . }}"
+      - name: registry-data
+      {{- if and .Values.persistence.enabled (eq .Values.persistence.imageChartStorage.type "filesystem") }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.persistence.persistentVolumeClaim.registry.existingClaim | default (include "harbor.registry" .) }}
+      {{- else }}
+        emptyDir: {}
+      {{- end }}
+    {{- with .Values.registry.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.registry.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.registry.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}

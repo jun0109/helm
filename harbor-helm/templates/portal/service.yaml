@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ template "harbor.portal" . }}"
+  namespace: harbor
+  labels:
+{{ include "harbor.labels" . | indent 4 }}
+spec:
+  ports:
+    - port: {{ .Values.portal.service.port }}
+      targetPort: {{ .Values.portal.service.targetPort }}
+  selector:
+{{ include "harbor.matchLabels" . | indent 4 }}
+    component: portal

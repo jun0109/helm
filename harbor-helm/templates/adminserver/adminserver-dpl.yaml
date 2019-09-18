@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ template "harbor.adminserver" . }}"
+  namespace: harbor
+  labels:
+{{ include "harbor.labels" . | indent 4 }}
+    component: adminserver
+spec:
+  replicas: {{ .Values.adminserver.replicas }}
+  selector:
+    matchLabels:
+{{ include "harbor.matchLabels" . | indent 6 }}
+      component: adminserver
+  strategy:
+    type: {{ .Values.strategy.type }}
+    rollingUpdate:
+      maxSurge: {{ .Values.strategy.maxSurge }}
+      maxUnavailable: {{ .Values.strategy.maxUnavailable }}
+  minReadySeconds: {{ .Values.minReadySeconds }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  template:
+    metadata:
+      labels:
+{{ include "harbor.labels" . | indent 8 }}
+        component: adminserver
+      annotations:
+        checksum/configmap: {{ include (print $.Template.BasePath "/adminserver/adminserver-cm.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/adminserver/adminserver-secrets.yaml") . | sha256sum }}
+        checksum/secret-core: {{ include (print $.Template.BasePath "/core/core-secret.yaml") . | sha256sum }}
+        checksum/secret-jobservice: {{ include (print $.Template.BasePath "/jobservice/jobservice-secrets.yaml") . | sha256sum }}
+{{- if .Values.adminserver.podAnnotations }}
+{{ toYaml .Values.adminserver.podAnnotations | indent 8 }}
+{{- end }}
+    spec:
+      containers:
+      - name: adminserver
+        image: "{{ .Values.adminserver.image.repository }}:{{ .Values.adminserver.image.tag }}"
+        imagePullPolicy: "{{ .Values.imagePullPolicy }}"
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.adminserver.livenessProbe.httpGet.path }}
+            port: {{ .Values.adminserver.livenessProbe.httpGet.port }}
+          initialDelaySeconds: {{ .Values.adminserver.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.adminserver.livenessProbe.periodSeconds }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.adminserver.readinessProbe.httpGet.path }}
+            port: {{ .Values.adminserver.readinessProbe.httpGet.port }}
+          initialDelaySeconds: {{ .Values.adminserver.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.adminserver.readinessProbe.periodSeconds }}
+        resources:
+{{ toYaml .Values.adminserver.resources | indent 10 }}
+        envFrom:
+        - configMapRef:
+            name: "{{ template "harbor.adminserver" . }}"
+        - secretRef:
+            name: "{{ template "harbor.adminserver" . }}"
+        env:
+          - name: PORT
+            value: "8080"
+          - name: JSON_CFG_STORE_PATH
+            value: /etc/adminserver/config/config.json
+          - name: KEY_PATH
+            value: /etc/adminserver/key
+          - name: CORE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: "{{ template "harbor.core" . }}"
+                key: secret
+          - name: JOBSERVICE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: "{{ template "harbor.jobservice" . }}"
+                key: secret
+        ports:
+        - containerPort: {{ .Values.adminserver.ports.containerPort }}
+        volumeMounts:
+        - name: adminserver-key
+          mountPath: /etc/adminserver/key
+          subPath: key
+      volumes:
+      - name: adminserver-key
+        secret:
+          secretName: "{{ template "harbor.adminserver" . }}"
+          items:
+          - key: secretKey
+            path: key
+    {{- with .Values.adminserver.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.adminserver.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.adminserver.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}

@@ -1,0 +1,46 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ template "fullname" . }}-nginx
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ template "fullname" . }}-nginx
+    version: 0.1.0
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: {{ .Values.strategy.type }}
+    rollingUpdate:
+      maxSurge: {{ .Values.strategy.maxSurge }}
+      maxUnavailable: {{ .Values.strategy.maxUnavailable }}
+#  minReadySeconds: {{ .Values.minReadySeconds }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "fullname" . }}-nginx
+        version: 0.1.0
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      containers:
+      - name: {{ template "fullname" . }}-nginx
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ default "" .Values.image.pullPolicy | quote }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.service.port }}
+          protocol: {{ .Values.service.protocol }}
+        livenessProbe:
+          tcpSocket:
+            port: {{ .Values.liveness.tcpSocket.port }}
+          initialDelaySeconds: {{ .Values.liveness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.liveness.periodSeconds }}           
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.readiness.tcpSocket.port }}
+        initialDelaySeconds: {{ .Values.readiness.initialDelaySeconds }}
+        periodSeconds: {{ .Values.readiness.periodSeconds }}
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 10"]

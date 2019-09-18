@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ template "harbor.portal" . }}"
+  namespace: harbor
+  labels:
+{{ include "harbor.labels" . | indent 4 }}
+    component: portal
+spec:
+  replicas: {{ .Values.portal.replicas }}
+  selector:
+    matchLabels:
+{{ include "harbor.matchLabels" . | indent 6 }}
+      component: portal
+  strategy:
+    type: {{ .Values.strategy.type }}
+    rollingUpdate:
+      maxSurge: {{ .Values.strategy.maxSurge }}
+      maxUnavailable: {{ .Values.strategy.maxUnavailable }}
+  minReadySeconds: {{ .Values.minReadySeconds }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  template:
+    metadata:
+      labels:
+{{ include "harbor.matchLabels" . | indent 8 }}
+        component: portal
+      annotations:
+{{- if .Values.portal.podAnnotations }}
+{{ toYaml .Values.portal.podAnnotations | indent 8 }}
+{{- end }}
+    spec:
+      containers:
+      - name: portal
+        image: {{ .Values.portal.image.repository }}:{{ .Values.portal.image.tag }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.portal.livenessProbe.httpGet.path }}
+            port: {{ .Values.portal.livenessProbe.httpGet.port }}
+          initialDelaySeconds: {{ .Values.portal.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.portal.livenessProbe.periodSeconds }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.portal.readinessProbe.httpGet.path }}
+            port: {{ .Values.portal.readinessProbe.httpGet.port }}
+          initialDelaySeconds: {{ .Values.portal.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.portal.readinessProbe.periodSeconds }}
+        ports:
+        - containerPort: {{ .Values.portal.containerPort }}
+    {{- with .Values.portal.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.portal.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.portal.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
