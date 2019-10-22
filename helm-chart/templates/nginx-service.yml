@@ -11,6 +11,7 @@ spec:
   ports:
   - port: {{ .Values.service.port }}
     protocol: {{ .Values.service.protocol }}
+#    nodePort: {{ .Values.service.nodePort }}
     name: {{ .Values.service.name }}
   selector:
     app: {{ template "fullname" . }}-nginx

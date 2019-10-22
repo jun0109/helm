@@ -1,0 +1,19 @@
+controller:
+  hostNetwork: true
+  daemonset:
+    useHostPort: false
+    hostPorts:
+      http: 80
+      https: 443
+  service:
+    type: ClusterIP
+  tolerations:
+    - operator: "Exists"
+  nodeSelector:
+    kubernetes.io/hostname: gke-rd3-jun-cluster-1-rd3-jun-pool-1-a5106ad3-srqq
+
+defaultBackend:
+  tolerations:
+    - operator: "Exists"
+  nodeSelector:
+    kubernetes.io/hostname: gke-rd3-jun-cluster-1-rd3-jun-pool-1-a5106ad3-srqq

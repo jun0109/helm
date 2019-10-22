@@ -25,11 +25,12 @@ spec:
       containers:
       - name: {{ template "fullname" . }}-nginx
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-        imagePullPolicy: {{ default "" .Values.image.pullPolicy | quote }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
         - name: http
           containerPort: {{ .Values.service.port }}
           protocol: {{ .Values.service.protocol }}
+#          nodePort: {{ .Values.service.nodePort }}
         livenessProbe:
           tcpSocket:
             port: {{ .Values.liveness.tcpSocket.port }}
@@ -44,3 +45,5 @@ spec:
           preStop:
             exec:
               command: ["/bin/sh", "-c", "sleep 10"]
+      imagePullSecrets:
+        - name: registry-secret

@@ -1,0 +1,23 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: my-nginx
+#  namespace: {{ .Values.namespace }}
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  rules:
+  - host: gke.test.local
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: my-nginx
+          servicePort: 80
+#  - host: jun.phpmyadmin
+#    http:
+#      paths:
+#      - path: /
+#        backend:
+#          serviceName: phpmyadmin
+#          servicePort: 80

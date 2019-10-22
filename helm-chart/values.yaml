@@ -1,7 +1,7 @@
 # Default values for phpfpm-app.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-namespace: test
+namespace: test3
 replicaCount: 2
 strategy:
   type: RollingUpdate
@@ -10,14 +10,15 @@ strategy:
 #minReadySeconds: 5
 revisionHistoryLimit: 10
 image:
-  repository: junlichung/nginxfinal
-  tag: 1.11.5
+  repository: nginx
+  tag: latest
   pullPolicy: IfNotPresent
 service:
   name: nginx
-  type: NodePort
+  type: ClusterIP
   port: 80
   protocol: TCP
+  nodePort: 31555
 terminationGracePeriodSeconds: 10
 liveness:
   tcpSocket:
